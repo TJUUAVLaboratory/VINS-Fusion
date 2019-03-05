@@ -232,6 +232,7 @@ void PoseGraph::loadKeyFrame(KeyFrame* cur_kf, bool flag_detect_loop)
     {
         addKeyFrameIntoVoc(cur_kf);
     }
+    //检测到回环帧
     if (loop_index != -1)
     {
         printf(" %d detect loop with %d \n", cur_kf->index, loop_index);
@@ -312,6 +313,11 @@ KeyFrame* PoseGraph::getKeyFrame(int index)
         return NULL;
 }
 
+//检测回环
+// query 求得QueryResults，评估图片相近的score
+// 然后把当前的brief_descriptors加入BriefDatabase
+// 判断QueryResults，看是否有回环帧
+//return:回环帧的frameid
 int PoseGraph::detectLoop(KeyFrame* keyframe, int frame_index)
 {
     // put image into image_pool; for visualization
@@ -319,7 +325,7 @@ int PoseGraph::detectLoop(KeyFrame* keyframe, int frame_index)
     if (DEBUG_IMAGE)
     {
         int feature_num = keyframe->keypoints.size();
-        cv::resize(keyframe->image, compressed_image, cv::Size(376, 240));
+        cv::resize(keyframe->image, compressed_image, cv::Size(376, 240));//压缩尺寸
         putText(compressed_image, "feature_num:" + to_string(feature_num), cv::Point2f(10, 10), CV_FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(255));
         image_pool[frame_index] = compressed_image;
     }
@@ -327,7 +333,7 @@ int PoseGraph::detectLoop(KeyFrame* keyframe, int frame_index)
     //first query; then add this frame into database!
     QueryResults ret;
     TicToc t_query;
-    db.query(keyframe->brief_descriptors, ret, 4, frame_index - 50);
+    db.query(keyframe->brief_descriptors, ret, 4, frame_index - 50); //连续的50帧之内不检测回环，不然没法进行了
     //printf("query time: %f", t_query.toc());
     //cout << "Searching for Image " << frame_index << ". " << ret << endl;
 
@@ -346,6 +352,7 @@ int PoseGraph::detectLoop(KeyFrame* keyframe, int frame_index)
     // visual loop result 
     if (DEBUG_IMAGE)
     {
+        //loop closure candidate 合并到current keyframe
         for (unsigned int i = 0; i < ret.size(); i++)
         {
             int tmp_index = ret[i].Id;
@@ -356,11 +363,11 @@ int PoseGraph::detectLoop(KeyFrame* keyframe, int frame_index)
         }
     }
     // a good match with its nerghbour
-    if (ret.size() >= 1 &&ret[0].Score > 0.05)
+    if (ret.size() >= 1 &&ret[0].Score > 0.05) //好的一个回环，比较相近
         for (unsigned int i = 1; i < ret.size(); i++)
         {
             //if (ret[i].Score > ret[0].Score * 0.3)
-            if (ret[i].Score > 0.015)
+            if (ret[i].Score > 0.015) //这个阈值之上都算回环帧
             {          
                 find_loop = true;
                 int tmp_index = ret[i].Id;
@@ -389,7 +396,7 @@ int PoseGraph::detectLoop(KeyFrame* keyframe, int frame_index)
             if (min_index == -1 || (ret[i].Id < min_index && ret[i].Score > 0.015))
                 min_index = ret[i].Id;
         }
-        return min_index;
+        return min_index; //回环帧的frameid
     }
     else
         return -1;
@@ -411,6 +418,7 @@ void PoseGraph::addKeyFrameIntoVoc(KeyFrame* keyframe)
     db.add(keyframe->brief_descriptors);
 }
 
+// x,y,z yaw 四自由度的优化
 void PoseGraph::optimize4DoF()
 {
     while(true)

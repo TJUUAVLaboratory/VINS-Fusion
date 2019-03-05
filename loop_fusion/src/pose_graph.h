@@ -59,8 +59,8 @@ public:
 	void savePoseGraph();
 	void loadPoseGraph();
 	void publish();
-	Vector3d t_drift;
-	double yaw_drift;
+	Vector3d t_drift; 
+	double yaw_drift;	
 	Matrix3d r_drift;
 	// world frame( base sequence or first sequence)<----> cur sequence frame  
 	Vector3d w_t_vio;
@@ -83,11 +83,11 @@ private:
 	int global_index;
 	int sequence_cnt;
 	vector<bool> sequence_loop;
-	map<int, cv::Mat> image_pool;
+	map<int, cv::Mat> image_pool;//用于可是化的 keyframe image_pool
 	int earliest_loop_index;
 	int base_sequence;
 
-	BriefDatabase db;
+	BriefDatabase db; 
 	BriefVocabulary* voc;
 
 	ros::Publisher pub_pg_path;

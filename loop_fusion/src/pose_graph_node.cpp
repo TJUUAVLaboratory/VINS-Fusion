@@ -39,8 +39,10 @@ queue<sensor_msgs::ImageConstPtr> image_buf;
 queue<sensor_msgs::PointCloudConstPtr> point_buf;
 queue<nav_msgs::Odometry::ConstPtr> pose_buf;
 queue<Eigen::Vector3d> odometry_buf;
+
 std::mutex m_buf;
 std::mutex m_process;
+
 int frame_index  = 0;
 int sequence = 1;
 PoseGraph posegraph;
@@ -60,6 +62,7 @@ int DEBUG_IMAGE;
 camodocal::CameraPtr m_camera;
 Eigen::Vector3d tic;
 Eigen::Matrix3d qic;
+
 ros::Publisher pub_match_img;
 ros::Publisher pub_camera_pose_visual;
 ros::Publisher pub_odometry_rect;
@@ -85,6 +88,7 @@ void new_sequence()
     }
     posegraph.posegraph_visualization->reset();
     posegraph.publish();
+
     m_buf.lock();
     while(!image_buf.empty())
         image_buf.pop();
@@ -242,18 +246,22 @@ void extrinsic_callback(const nav_msgs::Odometry::ConstPtr &pose_msg)
     m_process.unlock();
 }
 
+// measurement_process
+// image point pose数据对齐 ==> 选关键帧 ==>
 void process()
 {
+    ROS_DEBUG("measurement_process (loop_fusion -pose_graph_node)");
     while (true)
     {
         sensor_msgs::ImageConstPtr image_msg = NULL;
         sensor_msgs::PointCloudConstPtr point_msg = NULL;
         nav_msgs::Odometry::ConstPtr pose_msg = NULL;
 
-        // find out the messages with same time stamp
+        // find out the messages with same time stamp 数据通过时间戳对齐
         m_buf.lock();
         if(!image_buf.empty() && !point_buf.empty() && !pose_buf.empty())
-        {
+        {   
+            ROS_DEBUG("image-point-pose data alignment");
             if (image_buf.front()->header.stamp.toSec() > pose_buf.front()->header.stamp.toSec())
             {
                 pose_buf.pop();
@@ -271,8 +279,10 @@ void process()
                 pose_buf.pop();
                 while (!pose_buf.empty())
                     pose_buf.pop();
+
                 while (image_buf.front()->header.stamp.toSec() < pose_msg->header.stamp.toSec())
                     image_buf.pop();
+
                 image_msg = image_buf.front();
                 image_buf.pop();
 
@@ -322,7 +332,7 @@ void process()
             else
                 ptr = cv_bridge::toCvCopy(image_msg, sensor_msgs::image_encodings::MONO8);
             
-            cv::Mat image = ptr->image;
+            cv::Mat image = ptr->image;//得到一个frame
             // build keyframe
             Vector3d T = Vector3d(pose_msg->pose.pose.position.x,
                                   pose_msg->pose.pose.position.y,
@@ -331,8 +341,9 @@ void process()
                                      pose_msg->pose.pose.orientation.x,
                                      pose_msg->pose.pose.orientation.y,
                                      pose_msg->pose.pose.orientation.z).toRotationMatrix();
-            if((T - last_t).norm() > SKIP_DIS)
+            if((T - last_t).norm() > SKIP_DIS) //平移足够远为关键帧
             {
+                ROS_DEBUG(" select keyframe (T-last_t)/norm:%f  SKIP_DIS:%f", (T - last_t).norm(), SKIP_DIS);
                 vector<cv::Point3f> point_3d; 
                 vector<cv::Point2f> point_2d_uv; 
                 vector<cv::Point2f> point_2d_normal;
@@ -344,7 +355,7 @@ void process()
                     p_3d.x = point_msg->points[i].x;
                     p_3d.y = point_msg->points[i].y;
                     p_3d.z = point_msg->points[i].z;
-                    point_3d.push_back(p_3d);
+                    point_3d.push_back(p_3d);   //keyframe 对应的3D points
 
                     cv::Point2f p_2d_uv, p_2d_normal;
                     double p_id;
@@ -353,8 +364,8 @@ void process()
                     p_2d_uv.x = point_msg->channels[i].values[2];
                     p_2d_uv.y = point_msg->channels[i].values[3];
                     p_id = point_msg->channels[i].values[4];
-                    point_2d_normal.push_back(p_2d_normal);
-                    point_2d_uv.push_back(p_2d_uv);
+                    point_2d_normal.push_back(p_2d_normal);  //相机平面归一化的点
+                    point_2d_uv.push_back(p_2d_uv); //像素平面点
                     point_id.push_back(p_id);
 
                     //printf("u %f, v %f \n", p_2d_uv.x, p_2d_uv.y);

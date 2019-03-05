@@ -1,0 +1,9 @@
+{
+    "files.associations": {
+        "thread": "cpp",
+        "dense": "cpp",
+        "*.tcc": "cpp",
+        "unordered_map": "cpp",
+        "core": "cpp"
+    }
+}

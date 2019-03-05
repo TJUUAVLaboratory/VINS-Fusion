@@ -1,6 +1,39 @@
 
 # VINS-fusion使用说明  
 
+
+
+
+## loop-fusion 
+目的： 后端优化为了保证VIO的实时性，主要专注于 LocalVIO,随着时间的推移，不可避免地会有漂移。
+所以 loop-fusion  就是为了纠正漂移，获得更好的全局一致性。
+
+### loop-fusion
+
+**relocalization process**
+
+- loop detection module 
+>主要任务是当前的Keyframe 与之前所以的Keyfame比较，如果发现是之前到达的位置
+就把之前的那个关键帧作为一个loop closure frame 通过 loop edge连接，加入到当前窗口的pose graph
+
+loop detection的步骤：
+1. 订阅image pose point话题
+2. 选取关键帧，对于每一个关键帧提取 500个FAST feature， 并且求BRIEF描述子
+3. 回环检测  找到回环帧，
+4. 找到the same feature of loop closure frame and current windows featurn
+
+
+
+pose_graph_node.cpp 
+**measurement_process = std::thread(process)**
+- process
+- posegraph.addKeyFrame(keyframe, 1);
+- loop_index = detectLoop(cur_kf, cur_kf->index);
+
+pose_graph.cpp
+**t_optimization = std::thread(&PoseGraph::optimize4DoF, this)**
+
+
 ## 测试数据集与仿真测试
 
 ## 代码结构
