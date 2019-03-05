@@ -175,6 +175,7 @@ void KeyFrame::searchByBRIEFDes(std::vector<cv::Point2f> &matched_2d_old,
           status.push_back(1);
         else
           status.push_back(0);
+		  
         matched_2d_old.push_back(pt);
         matched_2d_old_norm.push_back(pt_norm);
     }
