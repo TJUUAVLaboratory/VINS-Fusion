@@ -24,11 +24,14 @@ std::string get_calib_info(int type) {
     }
 }
 
+//通过SDK 读取参数写入文件
 void ConversionFromDevice(const std::string& left_path, const std::string& right_path, Config img_intri_info, Config img_extri_info) {
   std::cout << "intrinsics: \n" << img_intri_info << std::endl;
   std::cout << "extrinsics: \n" << img_extri_info << std::endl;
   cv::FileStorage calib_intri_fs_left(left_path, cv::FileStorage::WRITE);
   cv::FileStorage calib_intri_fs_right(right_path, cv::FileStorage::WRITE);
+
+  //kannala_brandt calibration model
   if (img_intri_info["calib_model"] == "kannala_brandt") {
 
     calib_intri_fs_left << "model_type" << "KANNALA_BRANDT";
@@ -62,7 +65,9 @@ void ConversionFromDevice(const std::string& left_path, const std::string& right
     calib_intri_fs_right << "u0" << (double)img_intri_info["right"]["coeffs"][6];
     calib_intri_fs_right << "v0" << (double)img_intri_info["right"]["coeffs"][7];
     calib_intri_fs_right << "}";
-  } else if (img_intri_info["calib_model"] == "pinhole") {
+  } 
+  //pinhole calib model
+  else if (img_intri_info["calib_model"] == "pinhole") {
     calib_intri_fs_left << "model_type" << "PINHOLE";
     calib_intri_fs_left << "camera_name" << "pinhole";
     calib_intri_fs_left << "image_width" << (int)img_intri_info["left"]["width"];
@@ -105,6 +110,7 @@ void ConversionFromDevice(const std::string& left_path, const std::string& right
   calib_intri_fs_left.release();
 }
 
+//通过MYNTSDK API 获取相机内参 外参， 并写入parameter
 bool readMYNTConfig(std::string config_file) {
     auto img_intri = get_calib_info(0);
     Config img_intri_info;
