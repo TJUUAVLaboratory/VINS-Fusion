@@ -411,6 +411,7 @@ EquidistantCamera::estimateIntrinsics(const cv::Size& boardSize,
  *
  * \param p image coordinates
  * \param P coordinates of the point on the sphere
+ * 2D u-v像素坐标 映射到球面上 3D point
  */
 void
 EquidistantCamera::liftSphere(const Eigen::Vector2d& p, Eigen::Vector3d& P) const
@@ -423,6 +424,7 @@ EquidistantCamera::liftSphere(const Eigen::Vector2d& p, Eigen::Vector3d& P) cons
  *
  * \param p image coordinates
  * \param P coordinates of the projective ray
+ * 3Dpoint
  */
 void
 EquidistantCamera::liftProjective(const Eigen::Vector2d& p, Eigen::Vector3d& P) const

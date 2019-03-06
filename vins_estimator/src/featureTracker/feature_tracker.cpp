@@ -11,6 +11,7 @@
 
 #include "feature_tracker.h"
 
+// return: true 内点， false 边缘点
 bool FeatureTracker::inBorder(const cv::Point2f &pt)
 {
     const int BORDER_SIZE = 1;
@@ -52,6 +53,7 @@ FeatureTracker::FeatureTracker()
     hasPrediction = false;
 }
 
+//通过mask去除边缘畸变比较大的点
 void FeatureTracker::setMask()
 {
     mask = cv::Mat(row, col, CV_8UC1, cv::Scalar(255));
@@ -83,6 +85,7 @@ void FeatureTracker::setMask()
     }
 }
 
+// 把光流没追够的，用corner角点补进去 n_pts + cur_pts == >track_cnt
 void FeatureTracker::addPoints()
 {
     for (auto &p : n_pts)
@@ -93,6 +96,7 @@ void FeatureTracker::addPoints()
     }
 }
 
+//两个像素点的欧式距离
 double FeatureTracker::distance(cv::Point2f &pt1, cv::Point2f &pt2)
 {
     //printf("pt1: %f %f pt2: %f %f\n", pt1.x, pt1.y, pt2.x, pt2.y);
@@ -101,9 +105,15 @@ double FeatureTracker::distance(cv::Point2f &pt1, cv::Point2f &pt2)
     return sqrt(dx * dx + dy * dy);
 }
 
+// ***********************************
+//  特征点追踪：
+// calcOpticalFlowPyrLK-->反向追踪去除外点-->去除图像边缘的特征点-->通过setMask去除边缘畸变比较大的点-->
+// goodFeaturesToTrack 光流跟不够的用新提取的corners角点来补,使其达到每帧最大的特征点数量
+//  input : 某一时刻的左图，设置为cur_img
+// ***********************************
 map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> FeatureTracker::trackImage(double _cur_time, const cv::Mat &_img, const cv::Mat &_img1)
 {
-    TicToc t_r;
+    TicToc t_r; //计时
     cur_time = _cur_time;
     cur_img = _img;
     row = cur_img.rows;
@@ -124,14 +134,17 @@ map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> FeatureTracker::trackIm
         TicToc t_o;
         vector<uchar> status;
         vector<float> err;
-        if(hasPrediction)
+        if(hasPrediction) // has prediction 少跟踪一些
         {
             cur_pts = predict_pts;
+
+            //computes sparse optical flow using multi-scale Lucas-Kanade algorithm
+            //根据prev_img的prev_pts的特征点，在cur_img图像中预测cur_pts
             cv::calcOpticalFlowPyrLK(prev_img, cur_img, prev_pts, cur_pts, status, err, cv::Size(21, 21), 1, 
             cv::TermCriteria(cv::TermCriteria::COUNT+cv::TermCriteria::EPS, 30, 0.01), cv::OPTFLOW_USE_INITIAL_FLOW);
             
             int succ_num = 0;
-            for (size_t i = 0; i < status.size(); i++)
+            for (size_t i = 0; i < status.size(); i++)//光流跟踪到的特征点
             {
                 if (status[i])
                     succ_num++;
@@ -139,9 +152,10 @@ map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> FeatureTracker::trackIm
             if (succ_num < 10)
                cv::calcOpticalFlowPyrLK(prev_img, cur_img, prev_pts, cur_pts, status, err, cv::Size(21, 21), 3);
         }
-        else
+        else // hasPrediction = false 多跟踪一些
             cv::calcOpticalFlowPyrLK(prev_img, cur_img, prev_pts, cur_pts, status, err, cv::Size(21, 21), 3);
-        // reverse check
+
+        // reverse check 光流逆向追踪， 可能是为了去除outlire, 得到更稳定追踪的点
         if(FLOW_BACK)
         {
             vector<uchar> reverse_status;
@@ -151,7 +165,7 @@ map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> FeatureTracker::trackIm
             //cv::calcOpticalFlowPyrLK(cur_img, prev_img, cur_pts, reverse_pts, reverse_status, err, cv::Size(21, 21), 3); 
             for(size_t i = 0; i < status.size(); i++)
             {
-                if(status[i] && reverse_status[i] && distance(prev_pts[i], reverse_pts[i]) <= 0.5)
+                if(status[i] && reverse_status[i] && distance(prev_pts[i], reverse_pts[i]) <= 0.5) //正向和反向都追踪到了，而且距离没有异常
                 {
                     status[i] = 1;
                 }
@@ -161,14 +175,14 @@ map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> FeatureTracker::trackIm
         }
         
         for (int i = 0; i < int(cur_pts.size()); i++)
-            if (status[i] && !inBorder(cur_pts[i]))
+            if (status[i] && !inBorder(cur_pts[i])) // 去除边缘上的点
                 status[i] = 0;
         reduceVector(prev_pts, status);
         reduceVector(cur_pts, status);
         reduceVector(ids, status);
         reduceVector(track_cnt, status);
         ROS_DEBUG("temporal optical flow costs: %fms", t_o.toc());
-        //printf("track cnt %d\n", (int)ids.size());
+        printf("track cnt %d\n", (int)ids.size());
     }
 
     for (auto &n : track_cnt)
@@ -177,6 +191,7 @@ map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> FeatureTracker::trackIm
     if (1)
     {
         //rejectWithF();
+        // 通过setMask去除边缘畸变较大的点
         ROS_DEBUG("set mask begins");
         TicToc t_m;
         setMask();
@@ -184,6 +199,7 @@ map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> FeatureTracker::trackIm
 
         ROS_DEBUG("detect feature begins");
         TicToc t_t;
+        //光流跟不够的用新提取的corners角点来补,使其达到每帧最大的特征点数量
         int n_max_cnt = MAX_CNT - static_cast<int>(cur_pts.size());
         if (n_max_cnt > 0)
         {
@@ -197,6 +213,7 @@ map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> FeatureTracker::trackIm
             n_pts.clear();
         ROS_DEBUG("detect feature costs: %fms", t_t.toc());
 
+        // 把光流没追够的，用corner角点补进去 n_pts + cur_pts == >track_cnt
         ROS_DEBUG("add feature begins");
         TicToc t_a;
         addPoints();
