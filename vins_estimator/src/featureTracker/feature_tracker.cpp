@@ -108,8 +108,15 @@ double FeatureTracker::distance(cv::Point2f &pt1, cv::Point2f &pt2)
 // ***********************************
 //  特征点追踪：
 // calcOpticalFlowPyrLK-->反向追踪去除外点-->去除图像边缘的特征点-->通过setMask去除边缘畸变比较大的点-->
-// goodFeaturesToTrack 光流跟不够的用新提取的corners角点来补,使其达到每帧最大的特征点数量
-//  input : 某一时刻的左图，设置为cur_img
+// goodFeaturesToTrack 光流跟不够的用新提取的corners角点来补,使其达到每帧最大的特征点数量--->
+// 将当前帧的特征点(像素平面 u v)先去畸变，然后映射到归一化坐标系中-->
+// 根据前一帧和当前帧的特征点来计算当前帧特征点的速度 vx,vy
+// OpenCV 显示特征点与特征追踪的线--->
+// 当前帧赋值到上一帧历史记录
+// 将每一个特征点打包成featureFrame <归一化坐标的x,y,z 像素坐标u,v 点的速度vx,vy>
+// 
+//  input : 某一时刻的左图，设置为cur_img, 如果有右图也可输入右图
+//  return: featureFrame
 // ***********************************
 map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> FeatureTracker::trackImage(double _cur_time, const cv::Mat &_img, const cv::Mat &_img1)
 {
@@ -190,7 +197,7 @@ map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> FeatureTracker::trackIm
 
     if (1)
     {
-        //rejectWithF();
+        //rejectWithF();  //通过求解F矩阵过程中的RANSAC 来去除outlier
         // 通过setMask去除边缘畸变较大的点
         ROS_DEBUG("set mask begins");
         TicToc t_m;
@@ -219,10 +226,14 @@ map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> FeatureTracker::trackIm
         addPoints();
         ROS_DEBUG("selectFeature costs: %fms", t_a.toc());
     }
-
+    
+    //将当前帧的特征点(像素平面 u v)先去畸变，然后映射到归一化坐标系中
     cur_un_pts = undistortedPts(cur_pts, m_camera[0]);
+
+    //根据前一帧和当前帧的特征点来计算当前帧特征点的速度 vx,vy
     pts_velocity = ptsVelocity(ids, cur_un_pts, cur_un_pts_map, prev_un_pts_map);
 
+    //如果双目的话，根据当前的左图和左图中的特征点，使用光流法来找一下右图中的特征点
     if(!_img1.empty() && stereo_cam)
     {
         ids_right.clear();
@@ -262,14 +273,18 @@ map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> FeatureTracker::trackIm
             reduceVector(cur_un_pts, status);
             reduceVector(pts_velocity, status);
             */
+           //
             cur_un_right_pts = undistortedPts(cur_right_pts, m_camera[1]);
             right_pts_velocity = ptsVelocity(ids_right, cur_un_right_pts, cur_un_right_pts_map, prev_un_right_pts_map);
         }
         prev_un_right_pts_map = cur_un_right_pts_map;
     }
+
+    // OpenCV 显示特征点与特征追踪的线
     if(SHOW_TRACK)
         drawTrack(cur_img, rightImg, ids, cur_pts, cur_right_pts, prevLeftPtsMap);
 
+    // 当前帧赋值到上一帧历史记录
     prev_img = cur_img;
     prev_pts = cur_pts;
     prev_un_pts = cur_un_pts;
@@ -281,6 +296,7 @@ map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> FeatureTracker::trackIm
     for(size_t i = 0; i < cur_pts.size(); i++)
         prevLeftPtsMap[ids[i]] = cur_pts[i];
 
+    //将每一个特征点打包成featureFrame <归一化坐标的x,y,z 像素坐标u,v 点的速度vx,vy>
     map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> featureFrame;
     for (size_t i = 0; i < ids.size(); i++)
     {
@@ -301,7 +317,7 @@ map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> FeatureTracker::trackIm
         xyz_uv_velocity << x, y, z, p_u, p_v, velocity_x, velocity_y;
         featureFrame[feature_id].emplace_back(camera_id,  xyz_uv_velocity);
     }
-
+    //打包右图的特征点 (左图camera_id=0 右图camera_id=1)
     if (!_img1.empty() && stereo_cam)
     {
         for (size_t i = 0; i < ids_right.size(); i++)
@@ -329,6 +345,7 @@ map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> FeatureTracker::trackIm
     return featureFrame;
 }
 
+// 通过求解F矩阵过程中的RANSAC 来去除outlier
 void FeatureTracker::rejectWithF()
 {
     if (cur_pts.size() >= 8)
@@ -339,10 +356,11 @@ void FeatureTracker::rejectWithF()
         for (unsigned int i = 0; i < cur_pts.size(); i++)
         {
             Eigen::Vector3d tmp_p;
-            m_camera[0]->liftProjective(Eigen::Vector2d(cur_pts[i].x, cur_pts[i].y), tmp_p);
+            m_camera[0]->liftProjective(Eigen::Vector2d(cur_pts[i].x, cur_pts[i].y), tmp_p); //去畸变
+            //归一化的投影平面  u = fx*x(distorted)+cx
             tmp_p.x() = FOCAL_LENGTH * tmp_p.x() / tmp_p.z() + col / 2.0;
             tmp_p.y() = FOCAL_LENGTH * tmp_p.y() / tmp_p.z() + row / 2.0;
-            un_cur_pts[i] = cv::Point2f(tmp_p.x(), tmp_p.y());
+            un_cur_pts[i] = cv::Point2f(tmp_p.x(), tmp_p.y());//映射到归一化坐标
 
             m_camera[0]->liftProjective(Eigen::Vector2d(prev_pts[i].x, prev_pts[i].y), tmp_p);
             tmp_p.x() = FOCAL_LENGTH * tmp_p.x() / tmp_p.z() + col / 2.0;
@@ -375,6 +393,7 @@ void FeatureTracker::readIntrinsicParameter(const vector<string> &calib_file)
         stereo_cam = 1;
 }
 
+//显示 去畸变和归一化坐标映射的效果
 void FeatureTracker::showUndistortion(const string &name)
 {
     cv::Mat undistortedImg(row + 600, col + 600, CV_8UC1, cv::Scalar(0));
@@ -411,6 +430,14 @@ void FeatureTracker::showUndistortion(const string &name)
     cv::waitKey(0);
 }
 
+// 对于像素平面的二维点 去畸变，映射成三维坐标，最后输出三维归一化平面的坐标 x/z y/z  
+// 针对于不同相机模型，映射的方式不一样
+// cata鱼眼模型  -- 讲二维像素坐标映射到单位球面上 
+// Equidistant鱼眼模型
+// Pinhole
+// PinholeFull 
+// scaramuzza
+
 vector<cv::Point2f> FeatureTracker::undistortedPts(vector<cv::Point2f> &pts, camodocal::CameraPtr cam)
 {
     vector<cv::Point2f> un_pts;
@@ -419,11 +446,12 @@ vector<cv::Point2f> FeatureTracker::undistortedPts(vector<cv::Point2f> &pts, cam
         Eigen::Vector2d a(pts[i].x, pts[i].y);
         Eigen::Vector3d b;
         cam->liftProjective(a, b);
-        un_pts.push_back(cv::Point2f(b.x() / b.z(), b.y() / b.z()));
+        un_pts.push_back(cv::Point2f(b.x() / b.z(),  b.y() / b.z()));
     }
     return un_pts;
 }
 
+// 根据上一帧图像的特征点和当前帧图像的特征点，来计算点运动的速度
 vector<cv::Point2f> FeatureTracker::ptsVelocity(vector<int> &ids, vector<cv::Point2f> &pts, 
                                             map<int, cv::Point2f> &cur_id_pts, map<int, cv::Point2f> &prev_id_pts)
 {
@@ -464,6 +492,7 @@ vector<cv::Point2f> FeatureTracker::ptsVelocity(vector<int> &ids, vector<cv::Poi
     return pts_velocity;
 }
 
+//标注出特征点 并画出特征追踪的线
 void FeatureTracker::drawTrack(const cv::Mat &imLeft, const cv::Mat &imRight, 
                                vector<int> &curLeftIds,
                                vector<cv::Point2f> &curLeftPts, 
@@ -473,10 +502,10 @@ void FeatureTracker::drawTrack(const cv::Mat &imLeft, const cv::Mat &imRight,
     //int rows = imLeft.rows;
     int cols = imLeft.cols;
     if (!imRight.empty() && stereo_cam)
-        cv::hconcat(imLeft, imRight, imTrack);
+        cv::hconcat(imLeft, imRight, imTrack);//左右图矩阵合并
     else
         imTrack = imLeft.clone();
-    cv::cvtColor(imTrack, imTrack, CV_GRAY2RGB);
+    cv::cvtColor(imTrack, imTrack, CV_GRAY2RGB);//变成RGB为了让后面添加特征点时色彩丰富一点
 
     for (size_t j = 0; j < curLeftPts.size(); j++)
     {
@@ -485,7 +514,7 @@ void FeatureTracker::drawTrack(const cv::Mat &imLeft, const cv::Mat &imRight,
     }
     if (!imRight.empty() && stereo_cam)
     {
-        for (size_t i = 0; i < curRightPts.size(); i++)
+        for (size_t i = 0; i < curRightPts.size(); i++) //如果有右图，把右图上点移动到合并矩阵的右边去
         {
             cv::Point2f rightPt = curRightPts[i];
             rightPt.x += cols;
@@ -538,7 +567,7 @@ void FeatureTracker::setPrediction(map<int, Eigen::Vector3d> &predictPts)
         if (itPredict != predictPts.end())
         {
             Eigen::Vector2d tmp_uv;
-            m_camera[0]->spaceToPlane(itPredict->second, tmp_uv);
+            m_camera[0]->spaceToPlane(itPredict->second, tmp_uv); //归一化平面到像素平面u,v映射
             predict_pts.push_back(cv::Point2f(tmp_uv.x(), tmp_uv.y()));
             predict_pts_debug.push_back(cv::Point2f(tmp_uv.x(), tmp_uv.y()));
         }

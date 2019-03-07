@@ -44,8 +44,8 @@ std::vector<std::string> CAM_NAMES;
 int MAX_CNT;
 int MIN_DIST;
 double F_THRESHOLD;
-int SHOW_TRACK;
-int FLOW_BACK;
+int SHOW_TRACK;//true 显示特征点与特征追踪的线
+int FLOW_BACK; //ture 反向光流追踪
 
 void readParameters(std::string config_file)
 {

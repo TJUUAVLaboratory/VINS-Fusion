@@ -37,14 +37,15 @@ class FeatureTracker
 {
 public:
     FeatureTracker();
+    // trackImage vins特征追踪的核心函数
     map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> trackImage(double _cur_time, const cv::Mat &_img, const cv::Mat &_img1 = cv::Mat());
     void setMask(); 
     void addPoints();
     void readIntrinsicParameter(const vector<string> &calib_file);
-    void showUndistortion(const string &name);
+    void showUndistortion(const string &name); //显示 去畸变和归一化坐标映射的效果
     void rejectWithF();
     void undistortedPoints();
-    vector<cv::Point2f> undistortedPts(vector<cv::Point2f> &pts, camodocal::CameraPtr cam);
+    vector<cv::Point2f> undistortedPts(vector<cv::Point2f> &pts, camodocal::CameraPtr cam); //根据不同的相机模型去除畸变
     vector<cv::Point2f> ptsVelocity(vector<int> &ids, vector<cv::Point2f> &pts, 
                                     map<int, cv::Point2f> &cur_id_pts, map<int, cv::Point2f> &prev_id_pts);
     void showTwoImage(const cv::Mat &img1, const cv::Mat &img2, 
@@ -57,11 +58,11 @@ public:
     void setPrediction(map<int, Eigen::Vector3d> &predictPts);
     double distance(cv::Point2f &pt1, cv::Point2f &pt2);
     void removeOutliers(set<int> &removePtsIds);
-    cv::Mat getTrackImage();
+    cv::Mat getTrackImage(); //返回正在追踪的frame , 而且带有特征点和特征点追踪的线
     bool inBorder(const cv::Point2f &pt);
 
     int row, col;
-    cv::Mat imTrack;
+    cv::Mat imTrack;  // 当前正在追踪的图，左图或者 左右合并的图
     cv::Mat mask;
     cv::Mat fisheye_mask;
     cv::Mat prev_img, cur_img; //当前需要追踪的图和上一张图
@@ -70,7 +71,7 @@ public:
     vector<cv::Point2f> predict_pts_debug;
     vector<cv::Point2f> prev_pts, cur_pts, cur_right_pts; //当前图的特征点，以及前一张图的特征点
     vector<cv::Point2f> prev_un_pts, cur_un_pts, cur_un_right_pts;
-    vector<cv::Point2f> pts_velocity, right_pts_velocity;
+    vector<cv::Point2f> pts_velocity, right_pts_velocity; //当前帧每个特征点的 v_x, v_y
 
     vector<int> ids, ids_right;
     vector<int> track_cnt;

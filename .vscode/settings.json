@@ -4,6 +4,8 @@
         "dense": "cpp",
         "*.tcc": "cpp",
         "unordered_map": "cpp",
-        "core": "cpp"
+        "core": "cpp",
+        "deque": "cpp",
+        "vector": "cpp"
     }
 }
