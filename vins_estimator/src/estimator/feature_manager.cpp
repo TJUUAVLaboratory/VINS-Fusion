@@ -34,6 +34,7 @@ void FeatureManager::clearState()
     feature.clear();
 }
 
+//怎么感觉是返回 frame的数量呢
 int FeatureManager::getFeatureCount()
 {
     int cnt = 0;
@@ -48,7 +49,8 @@ int FeatureManager::getFeatureCount()
     return cnt;
 }
 
-
+// 计算新来的帧与上一帧中特征点的平均视差 
+// return:  ture 视差较大， false视差较小
 bool FeatureManager::addFeatureCheckParallax(int frame_count, const map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> &image, double td)
 {
     ROS_DEBUG("input feature: %d", (int)image.size());
@@ -61,6 +63,7 @@ bool FeatureManager::addFeatureCheckParallax(int frame_count, const map<int, vec
     long_track_num = 0;
     for (auto &id_pts : image)
     {
+        //对于一帧图像新来的每一个特征点 f_per_fra
         FeaturePerFrame f_per_fra(id_pts.second[0].second, td);
         assert(id_pts.second[0].first == 0);
         if(id_pts.second.size() == 2)
@@ -72,7 +75,7 @@ bool FeatureManager::addFeatureCheckParallax(int frame_count, const map<int, vec
         int feature_id = id_pts.first;
         auto it = find_if(feature.begin(), feature.end(), [feature_id](const FeaturePerId &it)
                           {
-            return it.feature_id == feature_id;
+                            return it.feature_id == feature_id;
                           });
 
         if (it == feature.end())
@@ -305,7 +308,7 @@ void FeatureManager::triangulate(int frameCnt, Vector3d Ps[], Matrix3d Rs[], Vec
     {
         if (it_per_id.estimated_depth > 0)
             continue;
-
+        //双目用左右图特征点的三角测量来估计特征点的深度
         if(STEREO && it_per_id.feature_per_frame[0].is_stereo)
         {
             int imu_i = it_per_id.start_frame;
@@ -345,6 +348,7 @@ void FeatureManager::triangulate(int frameCnt, Vector3d Ps[], Matrix3d Rs[], Vec
             */
             continue;
         }
+        // 单目的话
         else if(it_per_id.feature_per_frame.size() > 1)
         {
             int imu_i = it_per_id.start_frame;
@@ -527,6 +531,7 @@ void FeatureManager::removeFront(int frame_count)
     }
 }
 
+// 计算视差
 double FeatureManager::compensatedParallax2(const FeaturePerId &it_per_id, int frame_count)
 {
     //check the second last frame is keyframe or not

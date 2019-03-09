@@ -18,7 +18,7 @@ using namespace Eigen;
 class IntegrationBase
 {
   public:
-    IntegrationBase() = delete;
+    IntegrationBase() = delete;    
     IntegrationBase(const Eigen::Vector3d &_acc_0, const Eigen::Vector3d &_gyr_0,
                     const Eigen::Vector3d &_linearized_ba, const Eigen::Vector3d &_linearized_bg)
         : acc_0{_acc_0}, gyr_0{_gyr_0}, linearized_acc{_acc_0}, linearized_gyr{_gyr_0},
@@ -60,6 +60,7 @@ class IntegrationBase
             propagate(dt_buf[i], acc_buf[i], gyr_buf[i]);
     }
 
+    // 中值积分
     void midPointIntegration(double _dt, 
                             const Eigen::Vector3d &_acc_0, const Eigen::Vector3d &_gyr_0,
                             const Eigen::Vector3d &_acc_1, const Eigen::Vector3d &_gyr_1,

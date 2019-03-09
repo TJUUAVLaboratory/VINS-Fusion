@@ -25,12 +25,14 @@ Estimator::Estimator(): f_manager{Rs}
 
 void Estimator::setParameter()
 {
+    //对于单目/双目 每一个相机 body to camera的相对外参
     for (int i = 0; i < NUM_OF_CAM; i++)
     {
-        tic[i] = TIC[i];
+        tic[i] = TIC[i]; //body to camera 从config中读去一组值
         ric[i] = RIC[i];
         cout << " exitrinsic cam " << i << endl  << ric[i] << endl << tic[i].transpose() << endl;
     }
+    
     f_manager.setRic(ric);
     ProjectionTwoFrameOneCamFactor::sqrt_info = FOCAL_LENGTH / 1.5 * Matrix2d::Identity();
     ProjectionTwoFrameTwoCamFactor::sqrt_info = FOCAL_LENGTH / 1.5 * Matrix2d::Identity();
@@ -156,8 +158,9 @@ void Estimator::processMeasurements()
         vector<pair<double, Eigen::Vector3d>> accVector, gyrVector;
         if(!featureBuf.empty())
         {
+            //拿到当前image时刻feature
             feature = featureBuf.front();
-            curTime = feature.first + td;
+            curTime = feature.first + td; //feature的时间实际就是 current image frame时间
             while(1)
             {
                 if ((!USE_IMU  || IMUAvailable(feature.first + td)))
@@ -172,6 +175,7 @@ void Estimator::processMeasurements()
                 }
             }
             mBuf.lock();
+            //拿到当前image frame与prev frame间隔内的 IMU
             if(USE_IMU)
                 getIMUInterval(prevTime, curTime, accVector, gyrVector);
 
@@ -180,8 +184,9 @@ void Estimator::processMeasurements()
 
             if(USE_IMU)
             {
-                if(!initFirstPoseFlag)
+                if(!initFirstPoseFlag)  //false 第一帧； true是第一帧
                     initFirstIMUPose(accVector);
+                //对于两帧之间的所有IMU 处理    
                 for(size_t i = 0; i < accVector.size(); i++)
                 {
                     double dt;
@@ -191,6 +196,7 @@ void Estimator::processMeasurements()
                         dt = curTime - accVector[i - 1].first;
                     else
                         dt = accVector[i].first - accVector[i - 1].first;
+                    //IMU数据处理    
                     processIMU(accVector[i].first, dt, accVector[i].second, gyrVector[i].second);
                 }
             }
@@ -221,6 +227,7 @@ void Estimator::processMeasurements()
 }
 
 
+//根据初始的IMU acc 算出初始旋转 R0
 void Estimator::initFirstIMUPose(vector<pair<double, Eigen::Vector3d>> &accVector)
 {
     printf("init first imu pose\n");
@@ -299,10 +306,16 @@ void Estimator::clearState()
     failure_occur = 0;
 }
 
+/* *********************************************************************************
+* IMU Pre-interration front end
+* input: 一帧imu数据 t acc gyr 以及与上一帧 imu数据的时间间隔
+* 预积分 同时算出当前帧的Ps Vs Rs
+
+********************************************************************************* */ 
 void Estimator::processIMU(double t, double dt, const Vector3d &linear_acceleration, const Vector3d &angular_velocity)
 {
     ROS_DEBUG("Estimator::processIMU pre_integrations ");
-    if (!first_imu)
+    if (!first_imu) //false 是first imu; true 不是first imu
     {
         first_imu = true;
         acc_0 = linear_acceleration;
@@ -336,6 +349,15 @@ void Estimator::processIMU(double t, double dt, const Vector3d &linear_accelerat
     gyr_0 = angular_velocity; 
 }
 
+
+/* *********************************************************************************
+* visual processing front end
+* input: 一帧图像中对应的多个特征点
+* 计算当前帧与窗口的平均视差
+* 如果需要校准IMU camera的相对外参，校准一下
+* 如果没有初始化，就进行初始化
+* 如果初始化后，就进行非线性优化
+********************************************************************************* */ 
 void Estimator::processImage(const map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> &image, const double header)
 {
     ROS_DEBUG("Estimator::processImage ");
@@ -362,6 +384,7 @@ void Estimator::processImage(const map<int, vector<pair<int, Eigen::Matrix<doubl
     all_image_frame.insert(make_pair(header, imageframe));
     tmp_pre_integration = new IntegrationBase{acc_0, gyr_0, Bas[frame_count], Bgs[frame_count]};
 
+    // 计算IMU camera的相对外参
     if(ESTIMATE_EXTRINSIC == 2)
     {
         ROS_INFO("calibrating extrinsic param, rotation movement is needed");
@@ -471,6 +494,7 @@ void Estimator::processImage(const map<int, vector<pair<int, Eigen::Matrix<doubl
         TicToc t_solve;
         if(!USE_IMU)
             f_manager.initFramePoseByPnP(frame_count, Ps, Rs, tic, ric);
+            
         f_manager.triangulate(frame_count, Ps, Rs, tic, ric);
         optimization();
         set<int> removeIndex;

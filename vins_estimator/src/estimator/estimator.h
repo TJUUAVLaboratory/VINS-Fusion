@@ -91,17 +91,18 @@ class Estimator
         MARGIN_SECOND_NEW = 1
     };
 
+    // IMU 和 image feature 的数据队列
     std::mutex mBuf;
     queue<pair<double, Eigen::Vector3d>> accBuf;
     queue<pair<double, Eigen::Vector3d>> gyrBuf;
     queue<pair<double, map<int, vector<pair<int, Eigen::Matrix<double, 7, 1> > > > > > featureBuf;
-    double prevTime, curTime;
+    double prevTime, curTime; //image frame time
     bool openExEstimation;
 
-    std::thread trackThread;
-    std::thread processThread;
+    std::thread trackThread; //not used
+    std::thread processThread;//processMeasurements 线程
 
-    FeatureTracker featureTracker;
+    FeatureTracker featureTracker; //实例化一个特征追踪
 
     SolverFlag solver_flag;
     MarginalizationFlag  marginalization_flag;
@@ -110,6 +111,7 @@ class Estimator
     Matrix3d ric[2];
     Vector3d tic[2];
 
+    //窗口中每一帧frame的 P V R 以及陀螺仪和加速度计的偏置
     Vector3d        Ps[(WINDOW_SIZE + 1)];
     Vector3d        Vs[(WINDOW_SIZE + 1)];
     Matrix3d        Rs[(WINDOW_SIZE + 1)];
@@ -121,8 +123,9 @@ class Estimator
     Vector3d back_P0, last_P, last_P0;
     double Headers[(WINDOW_SIZE + 1)];
 
+    //窗口中每一帧image对应的imu-预积分值
     IntegrationBase *pre_integrations[(WINDOW_SIZE + 1)];
-    Vector3d acc_0, gyr_0;
+    Vector3d acc_0, gyr_0; //first imu的数据
 
     vector<double> dt_buf[(WINDOW_SIZE + 1)];
     vector<Vector3d> linear_acceleration_buf[(WINDOW_SIZE + 1)];
@@ -136,7 +139,7 @@ class Estimator
     MotionEstimator m_estimator;
     InitialEXRotation initial_ex_rotation;
 
-    bool first_imu;
+    bool first_imu; //false 是first imu; true 不是first imu
     bool is_valid, is_key;
     bool failure_occur;
 
@@ -162,6 +165,7 @@ class Estimator
     map<double, ImageFrame> all_image_frame;
     IntegrationBase *tmp_pre_integration;
 
+    //初始的旋转和平移
     Eigen::Vector3d initP;
     Eigen::Matrix3d initR;
 

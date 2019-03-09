@@ -29,7 +29,7 @@ queue<sensor_msgs::ImageConstPtr> img0_buf;
 queue<sensor_msgs::ImageConstPtr> img1_buf;
 std::mutex m_buf;
 
-
+// 订阅左图 img0
 void img0_callback(const sensor_msgs::ImageConstPtr &img_msg)
 {
     m_buf.lock();
@@ -37,6 +37,7 @@ void img0_callback(const sensor_msgs::ImageConstPtr &img_msg)
     m_buf.unlock();
 }
 
+// 订阅右图 img1
 void img1_callback(const sensor_msgs::ImageConstPtr &img_msg)
 {
     m_buf.lock();
@@ -44,7 +45,7 @@ void img1_callback(const sensor_msgs::ImageConstPtr &img_msg)
     m_buf.unlock();
 }
 
-
+// ros color image topic to cv::Mat mono image 
 cv::Mat getImageFromMsg(const sensor_msgs::ImageConstPtr &img_msg)
 {
     cv_bridge::CvImageConstPtr ptr;
@@ -68,11 +69,13 @@ cv::Mat getImageFromMsg(const sensor_msgs::ImageConstPtr &img_msg)
 }
 
 // extract images with same timestamp from two topics
+// 同步左右图送入  estimator.inputImage
 void sync_process()
 {
     while(1)
     {
         ROS_DEBUG("VINS-Thread-----------sync_process--------------------");
+        //同步左右图
         if(STEREO)
         {
             cv::Mat image0, image1;
@@ -131,7 +134,7 @@ void sync_process()
     }
 }
 
-
+// 订阅IMU话题  送入estimate.InputIMU
 void imu_callback(const sensor_msgs::ImuConstPtr &imu_msg)
 {
     double t = imu_msg->header.stamp.toSec();
@@ -147,7 +150,7 @@ void imu_callback(const sensor_msgs::ImuConstPtr &imu_msg)
     return;
 }
 
-
+//
 void feature_callback(const sensor_msgs::PointCloudConstPtr &feature_msg)
 {
     map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> featureFrame;
@@ -206,6 +209,7 @@ int main(int argc, char **argv)
 
    std::string config_file = "read_config_path_is_not_correct";   
 
+// 通过可执行文件的的输入参数制定config file
 if (argc > 1)
 {
     if(argc != 2)
@@ -218,6 +222,8 @@ if (argc > 1)
 
     config_file = argv[1];
 }
+
+//通过launch文件获取 config file
 else
 {
    // printf("config_file: %s\n", argv[1]);

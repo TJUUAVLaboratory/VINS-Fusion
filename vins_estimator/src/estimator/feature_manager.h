@@ -25,6 +25,7 @@ using namespace Eigen;
 #include "parameters.h"
 #include "../utility/tic_toc.h"
 
+//对于每一个Feature点的时间戳 归一化平面的点 像素坐标 速度 (如果双目的话还多出一个对应右图的)
 class FeaturePerFrame
 {
   public:
@@ -51,6 +52,7 @@ class FeaturePerFrame
         velocityRight.y() = _point(6); 
         is_stereo = true;
     }
+  
     double cur_td;
     Vector3d point, pointRight;
     Vector2d uv, uvRight;
@@ -58,6 +60,7 @@ class FeaturePerFrame
     bool is_stereo;
 };
 
+// 记录每一帧图片的多个feature点
 class FeaturePerId
 {
   public:
@@ -66,7 +69,7 @@ class FeaturePerId
     vector<FeaturePerFrame> feature_per_frame;
     int used_num;
     double estimated_depth;
-    int solve_flag; // 0 haven't solve yet; 1 solve succ; 2 solve fail;
+    int solve_flag; // 0 haven't solve yet;  1 solve succ; 2 solve fail;
 
     FeaturePerId(int _feature_id, int _start_frame)
         : feature_id(_feature_id), start_frame(_start_frame),
@@ -84,7 +87,8 @@ class FeatureManager
 
     void setRic(Matrix3d _ric[]);
     void clearState();
-    int getFeatureCount();
+    int  getFeatureCount();
+    // 计算新来的帧与上一帧中特征点的平均视差  return:  ture 视差较大， false视差较小
     bool addFeatureCheckParallax(int frame_count, const map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> &image, double td);
     vector<pair<Vector3d, Vector3d>> getCorresponding(int frame_count_l, int frame_count_r);
     //void updateDepth(const VectorXd &x);
@@ -102,11 +106,11 @@ class FeatureManager
     void removeBack();
     void removeFront(int frame_count);
     void removeOutlier(set<int> &outlierIndex);
-    list<FeaturePerId> feature;
-    int last_track_num;
+    list<FeaturePerId> feature; //每一个feature[i] 都代表一帧图像中的多个特征点
+    int last_track_num;  //追踪的数目
+    int new_feature_num; //新提的特征点的数目
     double last_average_parallax;
-    int new_feature_num;
-    int long_track_num;
+    int long_track_num; //追踪的图总image数目+1
 
   private:
     double compensatedParallax2(const FeaturePerId &it_per_id, int frame_count);

@@ -15,6 +15,7 @@ double MIN_PARALLAX;
 double ACC_N, ACC_W;
 double GYR_N, GYR_W;
 
+// body to camera 相对外参
 std::vector<Eigen::Matrix3d> RIC;
 std::vector<Eigen::Vector3d> TIC;
 
@@ -33,7 +34,7 @@ std::string OUTPUT_FOLDER;
 std::string IMU_TOPIC;
 int ROW, COL;
 double TD;
-int NUM_OF_CAM;
+int NUM_OF_CAM; //单目 双目
 int STEREO;
 int USE_IMU;
 int MULTIPLE_THREAD;
