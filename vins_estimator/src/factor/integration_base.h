@@ -41,7 +41,7 @@ class IntegrationBase
         dt_buf.push_back(dt);
         acc_buf.push_back(acc);
         gyr_buf.push_back(gyr);
-        propagate(dt, acc, gyr);
+        propagate(dt, acc, gyr); //积分
     }
 
     void repropagate(const Eigen::Vector3d &_linearized_ba, const Eigen::Vector3d &_linearized_bg)
@@ -69,17 +69,30 @@ class IntegrationBase
                             Eigen::Vector3d &result_delta_p, Eigen::Quaterniond &result_delta_q, Eigen::Vector3d &result_delta_v,
                             Eigen::Vector3d &result_linearized_ba, Eigen::Vector3d &result_linearized_bg, bool update_jacobian)
     {
-        //ROS_INFO("midpoint integration");
+        //ROS_INFO("midpoint integration");  
+//      |         _acc_0      _acc_1
+//      |         _gyr_0      _gyr_1
+//      |   △p      | result_△p |
+//      |   △v      | result_△v |
+//      |   △q      | result_△1 |
+//
+//
+        // 求解两帧IMU数据的预积分增量
+        //△q
+        Vector3d un_gyr = 0.5 * (_gyr_0 + _gyr_1) - linearized_bg;//中值
+        result_delta_q = delta_q * Quaterniond(1, un_gyr(0) * _dt / 2, un_gyr(1) * _dt / 2, un_gyr(2) * _dt / 2); //积分
+        //△v
         Vector3d un_acc_0 = delta_q * (_acc_0 - linearized_ba);
-        Vector3d un_gyr = 0.5 * (_gyr_0 + _gyr_1) - linearized_bg;
-        result_delta_q = delta_q * Quaterniond(1, un_gyr(0) * _dt / 2, un_gyr(1) * _dt / 2, un_gyr(2) * _dt / 2);
         Vector3d un_acc_1 = result_delta_q * (_acc_1 - linearized_ba);
-        Vector3d un_acc = 0.5 * (un_acc_0 + un_acc_1);
+        Vector3d un_acc = 0.5 * (un_acc_0 + un_acc_1);//中值
+        result_delta_v = delta_v + un_acc * _dt; //积分
+        //△p
         result_delta_p = delta_p + delta_v * _dt + 0.5 * un_acc * _dt * _dt;
-        result_delta_v = delta_v + un_acc * _dt;
+        
         result_linearized_ba = linearized_ba;
         result_linearized_bg = linearized_bg;         
 
+        //更新雅克比和协方差
         if(update_jacobian)
         {
             Vector3d w_x = 0.5 * (_gyr_0 + _gyr_1) - linearized_bg;
@@ -87,15 +100,17 @@ class IntegrationBase
             Vector3d a_1_x = _acc_1 - linearized_ba;
             Matrix3d R_w_x, R_a_0_x, R_a_1_x;
 
-            R_w_x<<0, -w_x(2), w_x(1),
-                w_x(2), 0, -w_x(0),
-                -w_x(1), w_x(0), 0;
-            R_a_0_x<<0, -a_0_x(2), a_0_x(1),
-                a_0_x(2), 0, -a_0_x(0),
-                -a_0_x(1), a_0_x(0), 0;
-            R_a_1_x<<0, -a_1_x(2), a_1_x(1),
-                a_1_x(2), 0, -a_1_x(0),
-                -a_1_x(1), a_1_x(0), 0;
+            R_w_x  <<     0,    -w_x(2),    w_x(1),
+                         w_x(2),   0,      -w_x(0),
+                        -w_x(1), w_x(0),     0;
+
+            R_a_0_x <<  0,     -a_0_x(2), a_0_x(1),
+                    a_0_x(2),       0,   -a_0_x(0),
+                   -a_0_x(1),   a_0_x(0),    0;
+
+            R_a_1_x <<  0, -a_1_x(2), a_1_x(1),
+                        a_1_x(2), 0, -a_1_x(0),
+                        -a_1_x(1), a_1_x(0), 0;
 
             MatrixXd F = MatrixXd::Zero(15, 15);
             F.block<3, 3>(0, 0) = Matrix3d::Identity();
@@ -142,10 +157,10 @@ class IntegrationBase
         dt = _dt;
         acc_1 = _acc_1;
         gyr_1 = _gyr_1;
-        Vector3d result_delta_p;
+        Vector3d result_delta_p; //预积分增量 △p △v △q
         Quaterniond result_delta_q;
         Vector3d result_delta_v;
-        Vector3d result_linearized_ba;
+        Vector3d result_linearized_ba; //偏置
         Vector3d result_linearized_bg;
 
         midPointIntegration(_dt, acc_0, gyr_0, _acc_1, _gyr_1, delta_p, delta_q, delta_v,
@@ -195,6 +210,7 @@ class IntegrationBase
         return residuals;
     }
 
+
     double dt;
     Eigen::Vector3d acc_0, gyr_0;
     Eigen::Vector3d acc_1, gyr_1;
@@ -202,12 +218,13 @@ class IntegrationBase
     const Eigen::Vector3d linearized_acc, linearized_gyr;
     Eigen::Vector3d linearized_ba, linearized_bg;
 
-    Eigen::Matrix<double, 15, 15> jacobian, covariance;
+    Eigen::Matrix<double, 15, 15> jacobian, covariance; //雅克比和协方差
     Eigen::Matrix<double, 15, 15> step_jacobian;
     Eigen::Matrix<double, 15, 18> step_V;
     Eigen::Matrix<double, 18, 18> noise;
 
     double sum_dt;
+    //预积分增量
     Eigen::Vector3d delta_p;
     Eigen::Quaterniond delta_q;
     Eigen::Vector3d delta_v;

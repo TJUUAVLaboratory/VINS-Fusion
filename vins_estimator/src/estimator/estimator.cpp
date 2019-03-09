@@ -309,7 +309,8 @@ void Estimator::clearState()
 /* *********************************************************************************
 * IMU Pre-interration front end
 * input: 一帧imu数据 t acc gyr 以及与上一帧 imu数据的时间间隔
-* 预积分 同时算出当前帧的Ps Vs Rs
+* output:
+* 预积分 ，算出当前帧的位置、速度、旋转Ps Vs Rs，
 
 ********************************************************************************* */ 
 void Estimator::processIMU(double t, double dt, const Vector3d &linear_acceleration, const Vector3d &angular_velocity)
@@ -328,6 +329,7 @@ void Estimator::processIMU(double t, double dt, const Vector3d &linear_accelerat
     }
     if (frame_count != 0)
     {
+        //压入一帧IMU数据进行预积分
         pre_integrations[frame_count]->push_back(dt, linear_acceleration, angular_velocity);
         //if(solver_flag != NON_LINEAR)
             tmp_pre_integration->push_back(dt, linear_acceleration, angular_velocity);
@@ -338,8 +340,8 @@ void Estimator::processIMU(double t, double dt, const Vector3d &linear_accelerat
 
         int j = frame_count;         
         Vector3d un_acc_0 = Rs[j] * (acc_0 - Bas[j]) - g;
-        Vector3d un_gyr = 0.5 * (gyr_0 + angular_velocity) - Bgs[j];
-        Rs[j] *= Utility::deltaQ(un_gyr * dt).toRotationMatrix();
+        Vector3d un_gyr = 0.5 * (gyr_0 + angular_velocity) - Bgs[j]; //gyr 中值
+        Rs[j] *= Utility::deltaQ(un_gyr * dt).toRotationMatrix(); // 下一帧在上一帧基础上旋转
         Vector3d un_acc_1 = Rs[j] * (linear_acceleration - Bas[j]) - g;
         Vector3d un_acc = 0.5 * (un_acc_0 + un_acc_1);
         Ps[j] += dt * Vs[j] + 0.5 * dt * dt * un_acc;
@@ -494,7 +496,7 @@ void Estimator::processImage(const map<int, vector<pair<int, Eigen::Matrix<doubl
         TicToc t_solve;
         if(!USE_IMU)
             f_manager.initFramePoseByPnP(frame_count, Ps, Rs, tic, ric);
-            
+
         f_manager.triangulate(frame_count, Ps, Rs, tic, ric);
         optimization();
         set<int> removeIndex;
