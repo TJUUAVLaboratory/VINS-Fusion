@@ -51,7 +51,7 @@ class Estimator
     void inputImage(double t, const cv::Mat &_img, const cv::Mat &_img1 = cv::Mat());
     void processIMU(double t, double dt, const Vector3d &linear_acceleration, const Vector3d &angular_velocity);
     void processImage(const map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> &image, const double header);
-    void processMeasurements();
+    void processMeasurements(); //IMU & camera feature processing thread
 
     // internal
     void clearState();
@@ -131,9 +131,9 @@ class Estimator
     vector<Vector3d> linear_acceleration_buf[(WINDOW_SIZE + 1)];
     vector<Vector3d> angular_velocity_buf[(WINDOW_SIZE + 1)];
 
-    int frame_count;
+    int frame_count; //在窗口中的位置 0-10
     int sum_of_outlier, sum_of_back, sum_of_front, sum_of_invalid;
-    int inputImageCnt;
+    int inputImageCnt; //输入图片的数量
 
     FeatureManager f_manager;
     MotionEstimator m_estimator;

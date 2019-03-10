@@ -20,6 +20,7 @@ using namespace std;
 using namespace Eigen;
 
 #include <ros/console.h>
+#include <ros/ros.h>
 #include <ros/assert.h>
 
 #include "parameters.h"
@@ -106,7 +107,7 @@ class FeatureManager
     void removeBack();
     void removeFront(int frame_count);
     void removeOutlier(set<int> &outlierIndex);
-    list<FeaturePerId> feature; //每一个feature[i] 都代表一帧图像中的多个特征点
+    list<FeaturePerId> feature; //
     int last_track_num;  //追踪的数目
     int new_feature_num; //新提的特征点的数目
     double last_average_parallax;

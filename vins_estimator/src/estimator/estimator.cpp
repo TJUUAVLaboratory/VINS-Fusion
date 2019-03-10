@@ -196,11 +196,11 @@ void Estimator::processMeasurements()
                         dt = curTime - accVector[i - 1].first;
                     else
                         dt = accVector[i].first - accVector[i - 1].first;
-                    //IMU数据处理    
+                    //IMU数据处理 - 计算预积分增量，更新雅克比、协方差 
                     processIMU(accVector[i].first, dt, accVector[i].second, gyrVector[i].second);
                 }
             }
-
+            //图像特征点数据处理
             processImage(feature.second, feature.first);
             prevTime = curTime;
 
@@ -362,9 +362,9 @@ void Estimator::processIMU(double t, double dt, const Vector3d &linear_accelerat
 ********************************************************************************* */ 
 void Estimator::processImage(const map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> &image, const double header)
 {
-    ROS_DEBUG("Estimator::processImage ");
     ROS_DEBUG("new image coming ------------------------------------------");
     ROS_DEBUG("Adding feature points %lu", image.size());
+    ROS_WARN("feature size: %d", feature.size());
     if (f_manager.addFeatureCheckParallax(frame_count, image, td))
     {
         marginalization_flag = MARGIN_OLD;
@@ -376,9 +376,9 @@ void Estimator::processImage(const map<int, vector<pair<int, Eigen::Matrix<doubl
         //printf("non-keyframe\n");
     }
 
-    ROS_DEBUG("%s", marginalization_flag ? "Non-keyframe" : "Keyframe");
-    ROS_DEBUG("Solving %d", frame_count);
-    ROS_DEBUG("number of feature: %d", f_manager.getFeatureCount());
+    ROS_WARN("%s", marginalization_flag ? "Non-keyframe" : "Keyframe");
+    ROS_WARN("Solving %d, input image count:%d", frame_count, inputImageCnt);
+    //ROS_WARN("number of feature: %d", f_manager.getFeatureCount());
     Headers[frame_count] = header;
 
     ImageFrame imageframe(image, header);
