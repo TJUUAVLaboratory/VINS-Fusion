@@ -50,9 +50,11 @@ int FeatureManager::getFeatureCount()
 }
 
 // 计算新来的帧与上一帧中特征点的平均视差 
-// return:  ture 视差较大， false视差较小
+// return:  true 视差较大， false视差较小
+// ture 说明上一帧是关键帧， false说明上一帧是非关键帧
 bool FeatureManager::addFeatureCheckParallax(int frame_count, const map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> &image, double td)
 {
+    // ROS_WARN("feature size: %lu", feature.size());
     //       map<feature_id, vector<pair<camera_id, Eigen::Matrix<feature 7*1>>>>
 
     //ROS_WARN("input feature: %d", (int)image.size()); //当前帧的特征点数量
@@ -82,7 +84,7 @@ bool FeatureManager::addFeatureCheckParallax(int frame_count, const map<int, vec
                             return it.feature_id == feature_id;
                           });
 
-        //相比于上一帧新提的特征点
+        //相比于上一帧新提的特征点， 加入到feature list中
         if (it == feature.end())
         {
             feature.push_back(FeaturePerId(feature_id, frame_count));
@@ -132,6 +134,7 @@ bool FeatureManager::addFeatureCheckParallax(int frame_count, const map<int, vec
     }
 }
 
+//找出两帧图像之间相匹配的特征点
 vector<pair<Vector3d, Vector3d>> FeatureManager::getCorresponding(int frame_count_l, int frame_count_r)
 {
     vector<pair<Vector3d, Vector3d>> corres;
@@ -313,13 +316,14 @@ void FeatureManager::initFramePoseByPnP(int frameCnt, Vector3d Ps[], Matrix3d Rs
     }
 }
 
+//将新来的帧的特征点 三角化，得到3D路标点
 void FeatureManager::triangulate(int frameCnt, Vector3d Ps[], Matrix3d Rs[], Vector3d tic[], Matrix3d ric[])
 {
     for (auto &it_per_id : feature)
     {
         if (it_per_id.estimated_depth > 0)
             continue;
-        //双目用左右图特征点的三角测量来估计特征点的深度
+        //双目 利用左右图特征点的三角测量 来估计3D point位置
         if(STEREO && it_per_id.feature_per_frame[0].is_stereo)
         {
             int imu_i = it_per_id.start_frame;
@@ -359,7 +363,7 @@ void FeatureManager::triangulate(int frameCnt, Vector3d Ps[], Matrix3d Rs[], Vec
             */
             continue;
         }
-        // 单目的话
+        // 单目的话 前后两帧三角测量
         else if(it_per_id.feature_per_frame.size() > 1)
         {
             int imu_i = it_per_id.start_frame;
@@ -502,6 +506,7 @@ void FeatureManager::removeBackShiftDepth(Eigen::Matrix3d marg_R, Eigen::Vector3
     }
 }
 
+//去除old keyframe的特征点
 void FeatureManager::removeBack()
 {
     for (auto it = feature.begin(), it_next = feature.begin();
@@ -520,6 +525,7 @@ void FeatureManager::removeBack()
     }
 }
 
+//去除 last second frame的特征点
 void FeatureManager::removeFront(int frame_count)
 {
     for (auto it = feature.begin(), it_next = feature.begin(); it != feature.end(); it = it_next)

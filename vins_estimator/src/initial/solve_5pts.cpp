@@ -200,7 +200,7 @@ namespace cv {
     }
 }
 
-
+// 对极几何约束求解R T  cv::findFundamentalMat-->cv::recoverPose
 bool MotionEstimator::solveRelativeRT(const vector<pair<Vector3d, Vector3d>> &corres, Matrix3d &Rotation, Vector3d &Translation)
 {
     if (corres.size() >= 15)

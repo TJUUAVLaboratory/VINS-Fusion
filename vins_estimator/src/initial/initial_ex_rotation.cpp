@@ -19,11 +19,13 @@ InitialEXRotation::InitialEXRotation(){
     ric = Matrix3d::Identity();
 }
 
+// 根据连续两帧的位置，两帧间预积分的 delta_q增量，得到校准的calib_ric 旋转量
+// 根据窗口内的多帧 10帧
 bool InitialEXRotation::CalibrationExRotation(vector<pair<Vector3d, Vector3d>> corres, Quaterniond delta_q_imu, Matrix3d &calib_ric_result)
 {
     frame_count++;
-    Rc.push_back(solveRelativeR(corres));
-    Rimu.push_back(delta_q_imu.toRotationMatrix());
+    Rc.push_back(solveRelativeR(corres)); //求解两帧之间的相对旋转(视觉)
+    Rimu.push_back(delta_q_imu.toRotationMatrix());// IMU预积分的求解相对旋转(IMU)
     Rc_g.push_back(ric.inverse() * delta_q_imu * ric);
 
     Eigen::MatrixXd A(frame_count * 4, 4);

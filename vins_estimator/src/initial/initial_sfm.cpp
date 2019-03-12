@@ -10,9 +10,11 @@
  *******************************************************/
 
 #include "initial_sfm.h"
+#include <ros/ros.h>
 
 GlobalSFM::GlobalSFM(){}
 
+//三角测量 求3d 特征点
 void GlobalSFM::triangulatePoint(Eigen::Matrix<double, 3, 4> &Pose0, Eigen::Matrix<double, 3, 4> &Pose1,
 						Vector2d &point0, Vector2d &point1, Vector3d &point_3d)
 {
@@ -30,6 +32,7 @@ void GlobalSFM::triangulatePoint(Eigen::Matrix<double, 3, 4> &Pose0, Eigen::Matr
 }
 
 
+//通过三角测量的 3p点， 使用pnp，恢复旋转和平移
 bool GlobalSFM::solveFrameByPnP(Matrix3d &R_initial, Vector3d &P_initial, int i,
 								vector<SFMFeature> &sfm_f)
 {
@@ -82,6 +85,7 @@ bool GlobalSFM::solveFrameByPnP(Matrix3d &R_initial, Vector3d &P_initial, int i,
 
 }
 
+//
 void GlobalSFM::triangulateTwoFrames(int frame0, Eigen::Matrix<double, 3, 4> &Pose0, 
 									 int frame1, Eigen::Matrix<double, 3, 4> &Pose1,
 									 vector<SFMFeature> &sfm_f)
@@ -121,15 +125,16 @@ void GlobalSFM::triangulateTwoFrames(int frame0, Eigen::Matrix<double, 3, 4> &Po
 }
 
 // 	 q w_R_cam t w_R_cam
-//  c_rotation cam_R_w 
-//  c_translation cam_R_w
-// relative_q[i][j]  j_q_i
-// relative_t[i][j]  j_t_ji  (j < i)
+//   c_rotation cam_R_w 
+//   c_translation cam_R_w
+//   relative_q[i][j]  j_q_i
+//   relative_t[i][j]  j_t_ji  (j < i)
 bool GlobalSFM::construct(int frame_num, Quaterniond* q, Vector3d* T, int l,
 			  const Matrix3d relative_R, const Vector3d relative_T,
 			  vector<SFMFeature> &sfm_f, map<int, Vector3d> &sfm_tracked_points)
 {
 	feature_num = sfm_f.size();
+	ROS_WARN("feature_num %d", (int)feature_num);
 	//cout << "set 0 and " << l << " as known " << endl;
 	// have relative_r relative_t
 	// intial two view
@@ -149,7 +154,8 @@ bool GlobalSFM::construct(int frame_num, Quaterniond* q, Vector3d* T, int l,
 	Quaterniond c_Quat[frame_num];
 	double c_rotation[frame_num][4];
 	double c_translation[frame_num][3];
-	Eigen::Matrix<double, 3, 4> Pose[frame_num];
+	Eigen::Matrix<double, 3, 4> Pose[frame_num]; //旋转和平移的矩阵
+
 
 	c_Quat[l] = q[l].inverse();
 	c_Rotation[l] = c_Quat[l].toRotationMatrix();
@@ -169,6 +175,7 @@ bool GlobalSFM::construct(int frame_num, Quaterniond* q, Vector3d* T, int l,
 	for (int i = l; i < frame_num - 1 ; i++)
 	{
 		// solve pnp
+		//使用pnp，恢复旋转和平移
 		if (i > l)
 		{
 			Matrix3d R_initial = c_Rotation[i - 1];
@@ -182,9 +189,10 @@ bool GlobalSFM::construct(int frame_num, Quaterniond* q, Vector3d* T, int l,
 			Pose[i].block<3, 1>(0, 3) = c_Translation[i];
 		}
 
-		// triangulate point based on the solve pnp result
+		// triangulate point based on the solve pnp result 
 		triangulateTwoFrames(i, Pose[i], frame_num - 1, Pose[frame_num - 1], sfm_f);
 	}
+	
 	//3: triangulate l-----l+1 l+2 ... frame_num -2
 	for (int i = l + 1; i < frame_num - 1; i++)
 		triangulateTwoFrames(l, Pose[l], i, Pose[i], sfm_f);
@@ -244,7 +252,7 @@ bool GlobalSFM::construct(int frame_num, Quaterniond* q, Vector3d* T, int l,
 	ceres::Problem problem;
 	ceres::LocalParameterization* local_parameterization = new ceres::QuaternionParameterization();
 	//cout << " begin full BA " << endl;
-	for (int i = 0; i < frame_num; i++)
+	for (int i = 0; i < frame_num; i++) //10帧图片
 	{
 		//double array for ceres
 		c_translation[i][0] = c_Translation[i].x();
@@ -254,7 +262,7 @@ bool GlobalSFM::construct(int frame_num, Quaterniond* q, Vector3d* T, int l,
 		c_rotation[i][1] = c_Quat[i].x();
 		c_rotation[i][2] = c_Quat[i].y();
 		c_rotation[i][3] = c_Quat[i].z();
-		problem.AddParameterBlock(c_rotation[i], 4, local_parameterization);
+		problem.AddParameterBlock(c_rotation[i], 4, local_parameterization);// 求解四元素 和 平移量
 		problem.AddParameterBlock(c_translation[i], 3);
 		if (i == l)
 		{
@@ -266,7 +274,7 @@ bool GlobalSFM::construct(int frame_num, Quaterniond* q, Vector3d* T, int l,
 		}
 	}
 
-	for (int i = 0; i < feature_num; i++)
+	for (int i = 0; i < feature_num; i++)// 窗口中frame
 	{
 		if (sfm_f[i].state != true)
 			continue;

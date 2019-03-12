@@ -145,7 +145,7 @@ class Estimator
 
     vector<Vector3d> point_cloud;
     vector<Vector3d> margin_cloud;
-    vector<Vector3d> key_poses;
+    vector<Vector3d> key_poses;//关键帧的位置
     double initial_timestamp;
 
 
@@ -162,7 +162,7 @@ class Estimator
     MarginalizationInfo *last_marginalization_info;
     vector<double *> last_marginalization_parameter_blocks;
 
-    map<double, ImageFrame> all_image_frame;
+    map<double, ImageFrame> all_image_frame; //窗口内imageFrame帧的一个数组
     IntegrationBase *tmp_pre_integration;
 
     //初始的旋转和平移

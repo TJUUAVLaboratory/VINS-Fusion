@@ -22,6 +22,7 @@ using namespace Eigen;
 #include <ros/console.h>
 
 /* This class help you to calibrate extrinsic rotation between imu and camera when your totally don't konw the extrinsic parameter */
+// IMU to camera的相对旋转
 class InitialEXRotation
 {
 public:
@@ -38,8 +39,8 @@ private:
                     cv::Mat_<double> &t1, cv::Mat_<double> &t2);
     int frame_count;
 
-    vector< Matrix3d > Rc;
-    vector< Matrix3d > Rimu;
+    vector< Matrix3d > Rc; //视觉旋转
+    vector< Matrix3d > Rimu; //IMU旋转
     vector< Matrix3d > Rc_g;
     Matrix3d ric;
 };

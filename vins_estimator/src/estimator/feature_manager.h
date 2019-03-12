@@ -65,9 +65,9 @@ class FeaturePerFrame
 class FeaturePerId
 {
   public:
-    const int feature_id;
+    const int feature_id; //每个feature点的id
     int start_frame;
-    vector<FeaturePerFrame> feature_per_frame;
+    vector<FeaturePerFrame> feature_per_frame; //多个点的vector
     int used_num;
     double estimated_depth;
     int solve_flag; // 0 haven't solve yet;  1 solve succ; 2 solve fail;
@@ -107,7 +107,7 @@ class FeatureManager
     void removeBack();
     void removeFront(int frame_count);
     void removeOutlier(set<int> &outlierIndex);
-    list<FeaturePerId> feature; //
+    list<FeaturePerId> feature; //窗口中光流追踪的特征点和新提特征点的list集合
     int last_track_num;  //追踪的数目
     int new_feature_num; //新提的特征点的数目
     double last_average_parallax;

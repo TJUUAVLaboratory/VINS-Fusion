@@ -29,12 +29,12 @@ class ImageFrame
         {
             points = _points;
         };
-        map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>> > > points;
+        map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>> > > points; //每一帧的特征点
         double t;
         Matrix3d R;
         Vector3d T;
-        IntegrationBase *pre_integration;
-        bool is_key_frame;
+        IntegrationBase *pre_integration; //图像的旋转平移和预积分增量
+        bool is_key_frame; //这一帧是否为关键帧
 };
 void solveGyroscopeBias(map<double, ImageFrame> &all_image_frame, Vector3d* Bgs);
 bool VisualIMUAlignment(map<double, ImageFrame> &all_image_frame, Vector3d* Bgs, Vector3d &g, VectorXd &x);

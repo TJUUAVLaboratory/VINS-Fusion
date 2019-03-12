@@ -26,10 +26,10 @@ using namespace std;
 
 struct SFMFeature
 {
-    bool state;
+    bool state; //是否被三角化
     int id;
-    vector<pair<int,Vector2d>> observation;
-    double position[3];
+    vector<pair<int,Vector2d>> observation; // sfm_f[i].observation[j]  第i幅图的第j个特征点
+    double position[3]; //三角测量后的3d point
     double depth;
 };
 
@@ -81,5 +81,5 @@ private:
 							  int frame1, Eigen::Matrix<double, 3, 4> &Pose1,
 							  vector<SFMFeature> &sfm_f);
 
-	int feature_num;
+	int feature_num; //feature_num = sfm_f.size()  sfm求解的特征点数量
 };

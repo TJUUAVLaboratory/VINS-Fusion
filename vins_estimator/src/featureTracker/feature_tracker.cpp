@@ -188,8 +188,8 @@ map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> FeatureTracker::trackIm
         reduceVector(cur_pts, status);
         reduceVector(ids, status);
         reduceVector(track_cnt, status);
-        ROS_DEBUG("temporal optical flow costs: %fms", t_o.toc());
-        printf("track cnt %d\n", (int)ids.size());
+        //ROS_WARNROS_WARN("temporal optical flow costs: %fms", t_o.toc());
+        ROS_WARN("KLT track cnt %d\n", (int)ids.size());
     }
 
     for (auto &n : track_cnt)
@@ -202,7 +202,7 @@ map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> FeatureTracker::trackIm
         ROS_DEBUG("set mask begins");
         TicToc t_m;
         setMask();
-        ROS_DEBUG("set mask costs %fms", t_m.toc());
+        //ROS_WARN("set mask costs %fms", t_m.toc());
 
         ROS_DEBUG("detect feature begins");
         TicToc t_t;
@@ -218,13 +218,13 @@ map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> FeatureTracker::trackIm
         }
         else
             n_pts.clear();
-        ROS_DEBUG("detect feature costs: %fms", t_t.toc());
+       //ROS_WARN("detect feature costs: %fms", t_t.toc());
 
         // 把光流没追够的，用corner角点补进去 n_pts + cur_pts == >track_cnt
         ROS_DEBUG("add feature begins");
         TicToc t_a;
         addPoints();
-        ROS_DEBUG("selectFeature costs: %fms", t_a.toc());
+       // ROS_WARN("selectFeature costs: %fms", t_a.toc());
     }
     
     //将当前帧的特征点(像素平面 u v)先去畸变，然后映射到归一化坐标系中
@@ -341,7 +341,7 @@ map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> FeatureTracker::trackIm
         }
     }
 
-    //printf("feature track whole time %f\n", t_r.toc());
+    ROS_WARN("feature track whole time %f\n", t_r.toc());
     return featureFrame;
 }
 

@@ -11,6 +11,7 @@
 
 #include "initial_alignment.h"
 
+// 根据窗口中 视觉的旋转和IMU的旋转 修正IMU陀螺仪的偏置，并更新IMU预积分增量
 void solveGyroscopeBias(map<double, ImageFrame> &all_image_frame, Vector3d* Bgs)
 {
     Matrix3d A;
@@ -27,12 +28,13 @@ void solveGyroscopeBias(map<double, ImageFrame> &all_image_frame, Vector3d* Bgs)
         tmp_A.setZero();
         VectorXd tmp_b(3);
         tmp_b.setZero();
-        Eigen::Quaterniond q_ij(frame_i->second.R.transpose() * frame_j->second.R);
-        tmp_A = frame_j->second.pre_integration->jacobian.template block<3, 3>(O_R, O_BG);
-        tmp_b = 2 * (frame_j->second.pre_integration->delta_q.inverse() * q_ij).vec();
+        Eigen::Quaterniond q_ij(frame_i->second.R.transpose() * frame_j->second.R); //视觉两帧之间旋转增量
+        tmp_A = frame_j->second.pre_integration->jacobian.template block<3, 3>(O_R, O_BG); //雅克比
+        tmp_b = 2 * (frame_j->second.pre_integration->delta_q.inverse() * q_ij).vec(); //视觉与IMU预积分旋转增量的误差
         A += tmp_A.transpose() * tmp_A;
         b += tmp_A.transpose() * tmp_b;
     }
+    //eigen库有求解的方法
     delta_bg = A.ldlt().solve(b);
     ROS_WARN_STREAM("gyroscope bias initial calibration " << delta_bg.transpose());
 
@@ -42,6 +44,7 @@ void solveGyroscopeBias(map<double, ImageFrame> &all_image_frame, Vector3d* Bgs)
     for (frame_i = all_image_frame.begin(); next(frame_i) != all_image_frame.end( ); frame_i++)
     {
         frame_j = next(frame_i);
+        //根据更新后的Bgs[0] 更新预积分
         frame_j->second.pre_integration->repropagate(Vector3d::Zero(), Bgs[0]);
     }
 }
@@ -208,8 +211,10 @@ bool LinearAlignment(map<double, ImageFrame> &all_image_frame, Vector3d &g, Vect
 
 bool VisualIMUAlignment(map<double, ImageFrame> &all_image_frame, Vector3d* Bgs, Vector3d &g, VectorXd &x)
 {
+    // 旋转对齐
     solveGyroscopeBias(all_image_frame, Bgs);
 
+    //位置和速度的线性对齐
     if(LinearAlignment(all_image_frame, g, x))
         return true;
     else 
