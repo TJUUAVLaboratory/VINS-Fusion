@@ -23,12 +23,12 @@ using namespace Eigen;
 using namespace std;
 
 
-
+// 每个特征点由多个连续的观测帧观测到
 struct SFMFeature
 {
     bool state; //是否被三角化
     int id;
-    vector<pair<int,Vector2d>> observation; // sfm_f[i].observation[j]  第i幅图的第j个特征点
+    vector<pair<int,Vector2d>> observation; // 存放路标点的 FrameId 及对应的特征点坐标
     double position[3]; //三角测量后的3d point
     double depth;
 };

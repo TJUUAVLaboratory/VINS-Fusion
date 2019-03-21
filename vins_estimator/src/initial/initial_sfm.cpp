@@ -133,6 +133,7 @@ bool GlobalSFM::construct(int frame_num, Quaterniond* q, Vector3d* T, int l,
 			  const Matrix3d relative_R, const Vector3d relative_T,
 			  vector<SFMFeature> &sfm_f, map<int, Vector3d> &sfm_tracked_points)
 {
+	//vector<SFMFeature> &sfm_f 表示滑窗内所有路标点 （SFMFeature代表每一个特征点在多个观测帧的观测)
 	feature_num = sfm_f.size();
 	ROS_WARN("feature_num %d", (int)feature_num);
 	//cout << "set 0 and " << l << " as known " << endl;
@@ -325,6 +326,7 @@ bool GlobalSFM::construct(int frame_num, Quaterniond* q, Vector3d* T, int l,
 	{
 		if(sfm_f[i].state)
 			sfm_tracked_points[sfm_f[i].id] = Vector3d(sfm_f[i].position[0], sfm_f[i].position[1], sfm_f[i].position[2]);
+			//sfm_tracked_points 为三角化出来的3D 路标点
 	}
 	return true;
 
