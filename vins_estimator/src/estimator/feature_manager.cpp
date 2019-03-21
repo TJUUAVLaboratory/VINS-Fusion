@@ -284,7 +284,7 @@ void FeatureManager::initFramePoseByPnP(int frameCnt, Vector3d Ps[], Matrix3d Rs
         {
             if (it_per_id.estimated_depth > 0)
             {
-                int index = frameCnt - it_per_id.start_frame;
+                int index = frameCnt - it_per_id.start_frame; //frame帧id
                 if((int)it_per_id.feature_per_frame.size() >= index + 1)
                 {
                     Vector3d ptsInCam = ric[0] * (it_per_id.feature_per_frame[0].point * it_per_id.estimated_depth) + tic[0];
@@ -548,7 +548,7 @@ void FeatureManager::removeFront(int frame_count)
     }
 }
 
-// 计算当前帧与上一帧的视差，如果视差比较大说明上一帧是关键帧
+//计算frame_count-1帧 frame_count-2帧的其中一个特征点的视差
 double FeatureManager::compensatedParallax2(const FeaturePerId &it_per_id, int frame_count)
 {
     //check the second last frame is keyframe or not

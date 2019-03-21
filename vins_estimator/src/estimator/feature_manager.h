@@ -26,10 +26,10 @@ using namespace Eigen;
 #include "parameters.h"
 #include "../utility/tic_toc.h"
 
-//对于每一个Feature点的时间戳 归一化平面的点 像素坐标 速度 (如果双目的话还多出一个对应右图的)
-class FeaturePerFrame
+// 每个路标点在一张图像上的信息  3D逆深度，像素坐标 移动速度
+class FeaturePerFrame 
 {
-  public:
+  public: 
     FeaturePerFrame(const Eigen::Matrix<double, 7, 1> &_point, double td)
     {
         point.x() = _point(0);
@@ -61,16 +61,16 @@ class FeaturePerFrame
     bool is_stereo;
 };
 
-// 记录每一帧图片的多个feature点
+// 每一个路标点由多个连续的图像观测到的信息
 class FeaturePerId
 {
   public:
     const int feature_id; //每个feature点的id
-    int start_frame;
-    vector<FeaturePerFrame> feature_per_frame; //多个点的vector
+    int start_frame; //第一次观测到这个特征点的首帧
+    vector<FeaturePerFrame> feature_per_frame; //这个特征点在多个观测帧上的信息
     int used_num;
-    double estimated_depth;
-    int solve_flag; // 0 haven't solve yet;  1 solve succ; 2 solve fail;
+    double estimated_depth; //三角化的深度
+    int solve_flag;         // 0 haven't solve yet;  1 solve succ; 2 solve fail;
 
     FeaturePerId(int _feature_id, int _start_frame)
         : feature_id(_feature_id), start_frame(_start_frame),
@@ -78,9 +78,10 @@ class FeaturePerId
     {
     }
 
-    int endFrame();
+    int endFrame(); 
 };
 
+// 划窗内所有的路标点管理
 class FeatureManager
 {
   public:
@@ -107,14 +108,15 @@ class FeatureManager
     void removeBack();
     void removeFront(int frame_count);
     void removeOutlier(set<int> &outlierIndex);
-    list<FeaturePerId> feature; //窗口中光流追踪的特征点和新提特征点的list集合
+
+    list<FeaturePerId> feature; //划窗内所有的路标点，list的每一个元素都是一个路标点FeaturePerId
     int last_track_num;  //追踪的数目
     int new_feature_num; //新提的特征点的数目
     double last_average_parallax;
     int long_track_num; //追踪的图总image数目+1
 
   private:
-    double compensatedParallax2(const FeaturePerId &it_per_id, int frame_count);
+    double compensatedParallax2(const FeaturePerId &it_per_id, int frame_count); //计算frame_count-1帧 frame_count-2帧的其中一个特征点的视差
     const Matrix3d *Rs;
     Matrix3d ric[2];
 };

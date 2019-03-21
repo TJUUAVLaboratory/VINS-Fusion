@@ -5,9 +5,9 @@
 	<remap from="/cam1/image_raw" to="/camera/right/image_raw" />  -->
    </node>
     <!-- rviz -->
-    <node name="rvizvisualisation" pkg="rviz" type="rviz" output="log" args="-d $(find vins)/../config/vins_rviz.rviz" />
+    <node name="rvizvisualisation" pkg="rviz" type="rviz" output="log" args="-d $(find vins_fusion)/../config/vins_rviz.rviz" />
 
-    <node name="vins_node" pkg="vins" type="vins_node" output="screen" 
-    args="$(find vins)/../config/euroc/euroc_stereo_imu_config.yaml" />
+    <node name="vins_node" pkg="vins_fusion" type="vins_node" output="screen" 
+    args="$(find vins_fusion)/../config/euroc/euroc_stereo_imu_config.yaml" />
 
 </launch>
