@@ -49,6 +49,7 @@ class Estimator
     void inputIMU(double t, const Vector3d &linearAcceleration, const Vector3d &angularVelocity);
     void inputFeature(double t, const map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> &featureFrame);
     void inputImage(double t, const cv::Mat &_img, const cv::Mat &_img1 = cv::Mat());
+
     void processIMU(double t, double dt, const Vector3d &linear_acceleration, const Vector3d &angular_velocity);
     void processImage(const map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> &image, const double header);
     void processMeasurements(); //IMU & camera feature processing thread
@@ -108,13 +109,13 @@ class Estimator
     MarginalizationFlag  marginalization_flag;
     Vector3d g;
 
-    Matrix3d ric[2];
+    Matrix3d ric[2]; //imu 与 cam的相对外参
     Vector3d tic[2];
 
     //窗口中每一帧frame的 P V R 以及陀螺仪和加速度计的偏置
-    Vector3d        Ps[(WINDOW_SIZE + 1)];
-    Vector3d        Vs[(WINDOW_SIZE + 1)];
-    Matrix3d        Rs[(WINDOW_SIZE + 1)];
+    Vector3d        Ps[(WINDOW_SIZE + 1)]; //Body farame下的 P V R
+    Vector3d        Vs[(WINDOW_SIZE + 1)]; //
+    Matrix3d        Rs[(WINDOW_SIZE + 1)]; //相机到世界坐标的旋转
     Vector3d        Bas[(WINDOW_SIZE + 1)];
     Vector3d        Bgs[(WINDOW_SIZE + 1)];
     double td;
@@ -169,7 +170,7 @@ class Estimator
     Eigen::Vector3d initP;
     Eigen::Matrix3d initR;
 
-    double latest_time;
+    double latest_time; 
     Eigen::Vector3d latest_P, latest_V, latest_Ba, latest_Bg, latest_acc_0, latest_gyr_0;
     Eigen::Quaterniond latest_Q;
 

@@ -125,7 +125,7 @@ void sync_process()
                 img0_buf.pop();
             }
             m_buf.unlock();
-            if(!image.empty())
+            if(!image.empty())//前端线程追踪
                 estimator.inputImage(time, image);  
         }
 
