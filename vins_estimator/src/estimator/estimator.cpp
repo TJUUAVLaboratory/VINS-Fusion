@@ -49,6 +49,7 @@ void Estimator::setParameter()
     }
 }
 
+
 void Estimator::inputImage(double t, const cv::Mat &_img, const cv::Mat &_img1)
 {
     inputImageCnt++;

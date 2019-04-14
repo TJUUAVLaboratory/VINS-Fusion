@@ -113,7 +113,7 @@ class Estimator
     Vector3d tic[2];
 
     //窗口中每一帧frame的 P V R 以及陀螺仪和加速度计的偏置
-    Vector3d        Ps[(WINDOW_SIZE + 1)]; //Body farame下的 P V R
+    Vector3d        Ps[(WINDOW_SIZE + 1)]; //Body --> w
     Vector3d        Vs[(WINDOW_SIZE + 1)]; //
     Matrix3d        Rs[(WINDOW_SIZE + 1)]; //相机到世界坐标的旋转
     Vector3d        Bas[(WINDOW_SIZE + 1)];
